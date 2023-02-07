@@ -1,0 +1,76 @@
+version: "3"
+
+services:
+  # PostgreSQLの実行環境
+  postgresql:
+    build:
+      context: ./docker/postgresql
+      dockerfile: Dockerfile
+    image: goblank/postgresql
+    env_file:
+      - docker/postgresql/.env
+    ports:
+      - 5432:5432
+    networks:
+      - container_link
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data:rw
+    environment:
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "1"
+
+  # pgAdmin4の実行環境
+  pgadmin4:
+    image: dpage/pgadmin4:4.29
+    env_file:
+      - docker/pgadmin4/.env
+    depends_on:
+      - postgresql
+    ports:
+      - 5433:80
+    networks:
+      - container_link
+    volumes:
+      - pgadmin4_data:/var/lib/pgadmin:rw
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "1"
+
+  # Golangの実行環境
+  app:
+    build:
+      context: ./
+      dockerfile: docker/app/Dockerfile
+    image: goblank/golang
+    depends_on:
+      - postgresql
+    networks:
+      - container_link
+    volumes:
+      - ./:/app
+    tty: true
+    ports:
+      - "8080:8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "1"
+
+networks:
+  default:
+    external: true
+  container_link:
+    name: goblank.docker.internal
+
+volumes:
+  postgresql_data:
+    driver: local
+  pgadmin4_data:
+    driver: local
